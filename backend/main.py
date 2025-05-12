@@ -44,55 +44,54 @@ def pack_products(vehicle: Dict[str, float], products: List[Dict]) -> List[Dict]
     products.sort(key=compute_volume, reverse=True)
 
     packed_items = []
-    x, y, z = 0, 0, 0
-    max_layer_height = 0
-    max_row_breadth = 0
+    # List of available spaces: each space is (x, y, z, l, b, h)
+    spaces = [(0, 0, 0, v_length, v_breadth, v_height)]
 
     for product in products:
-        fit = False
+        placed = False
         rotations = generate_rotations(product["padded_length"], product["padded_breadth"], product["padded_height"])
 
-        for rot in rotations:
-            p_len, p_br, p_ht = rot
-            if (x + p_len <= v_length) and (y + p_br <= v_breadth) and (z + p_ht <= v_height):
-                fit = True
+        for i, (sx, sy, sz, sl, sb, sh) in enumerate(spaces):
+            for rot in rotations:
+                p_len, p_br, p_ht = rot
+                # Check if the product fits in the current available space
+                if p_len <= sl and p_br <= sb and p_ht <= sh:
+                    # Pack the item here
+                    packed_items.append({
+                        "product_id": product["product_id"],
+                        "product_name": product["product_name"],
+                        "fragility_index": product["fragility_index"],
+                        "adjusted_size": {
+                            "length": round(p_len, 2),
+                            "breadth": round(p_br, 2),
+                            "height": round(p_ht, 2)
+                        },
+                        "position": {
+                            "x": round(sx, 2),
+                            "y": round(sy, 2),
+                            "z": round(sz, 2)
+                        }
+                    })
+
+                    # Remove used space and add new subspaces (left, right, front, back, top, bottom)
+                    del spaces[i]
+                    if p_len < sl:
+                        spaces.append((sx + p_len, sy, sz, sl - p_len, sb, sh))  # Right side
+                    if p_br < sb:
+                        spaces.append((sx, sy + p_br, sz, p_len, sb - p_br, sh))  # Front side
+                    if p_ht < sh:
+                        spaces.append((sx, sy, sz + p_ht, p_len, p_br, sh - p_ht))  # Top side
+                    if p_len < sl:
+                        spaces.append((sx, sy, sz, sl - p_len, sb, sh))  # Left side (before)
+                    if p_br < sb:
+                        spaces.append((sx, sy, sz, p_len, sb - p_br, sh))  # Back side (before)
+                    if p_ht < sh:
+                        spaces.append((sx, sy, sz, p_len, p_br, sh - p_ht))  # Bottom side
+
+                    placed = True
+                    break
+            if placed:
                 break
-
-        if not fit:
-            continue
-
-        packed_items.append({
-            "product_id": product["product_id"],
-            "product_name": product["product_name"],
-            "fragility_index": product["fragility_index"],
-            "adjusted_size": {
-                "length": round(p_len, 2),
-                "breadth": round(p_br, 2),
-                "height": round(p_ht, 2)
-            },
-            "position": {
-                "x": round(x, 2),
-                "y": round(y, 2),
-                "z": round(z, 2)
-            }
-        })
-
-        x += p_len
-        max_row_breadth = max(max_row_breadth, p_br)
-        max_layer_height = max(max_layer_height, p_ht)
-
-        if x >= v_length:
-            x = 0
-            y += max_row_breadth
-            max_row_breadth = 0
-
-        if y >= v_breadth:
-            y = 0
-            z += max_layer_height
-            max_layer_height = 0
-
-        if z >= v_height:
-            break
 
     return packed_items
 
@@ -111,4 +110,5 @@ def pack_vehicle_space(vehicle: VehicleDimensions):
         raise HTTPException(status_code=500, detail="Failed to load product data")
 
     packed = pack_products(vehicle.dict(), products)
+    print(f"Total packed items: {len(packed)}")
     return {"packed_items": packed}

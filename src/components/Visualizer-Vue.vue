@@ -5,8 +5,22 @@
       <p><strong>Vehicle Length:</strong> {{ vehicleData.length }}</p>
       <p><strong>Vehicle Breadth:</strong> {{ vehicleData.breadth }}</p>
       <p><strong>Vehicle Height:</strong> {{ vehicleData.height }}</p>
-      <div ref="threeCanvas" class="three-canvas"></div>
-      <div ref="tooltip" class="tooltip">Tooltip</div>
+      <div
+        ref="threeCanvas"
+        class="three-canvas"
+        style="width: 100%; height: 500px; position: relative;"
+      ></div>
+      <div
+        class="tooltip"
+        :style="{
+          top: tooltip.y + 'px',
+          left: tooltip.x + 'px',
+          display: tooltip.visible ? 'block' : 'none'
+        }"
+      >
+        <p><strong>ID:</strong> {{ tooltip.id }}</p>
+        <p><strong>Name:</strong> {{ tooltip.name }}</p>
+      </div>
     </div>
   </div>
 </template>
@@ -19,7 +33,7 @@ import axios from 'axios'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 
 const threeCanvas = ref(null)
-const tooltip = ref(null)
+const tooltip = ref({ visible: false, x: 0, y: 0, id: '', name: '' })
 const vehicleData = ref(null)
 const route = useRoute()
 
@@ -35,88 +49,115 @@ onMounted(async () => {
 
   await nextTick()
 
-  const canvas = threeCanvas.value
-  const width = canvas.clientWidth
-  const height = canvas.clientHeight
+  const canvasEl = threeCanvas.value
+  const width = canvasEl.clientWidth
+  const height = canvasEl.clientHeight
 
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000)
-  camera.position.set(0, 0, Math.max(vehicleData.value.length, vehicleData.value.breadth, vehicleData.value.height) * 2)
+  camera.position.set(
+    vehicleData.value.length,
+    vehicleData.value.height,
+    vehicleData.value.breadth * 2
+  )
 
   const renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setSize(width, height)
-  canvas.appendChild(renderer.domElement)
+  canvasEl.appendChild(renderer.domElement)
 
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
-  controls.dampingFactor = 0.05
 
   const light = new THREE.AmbientLight(0xffffff, 1)
   scene.add(light)
 
-  const vehicleGeometry = new THREE.BoxGeometry(vehicleData.value.length, vehicleData.value.height, vehicleData.value.breadth)
-  const vehicleMaterial = new THREE.MeshBasicMaterial({ color: 0x888888, wireframe: true })
-  const vehicleBox = new THREE.Mesh(vehicleGeometry, vehicleMaterial)
-  vehicleBox.position.set(vehicleData.value.length / 2, vehicleData.value.height / 2, vehicleData.value.breadth / 2)
+  const raycaster = new THREE.Raycaster()
+  const mouse = new THREE.Vector2()
+
+  // Vehicle outer box (wireframe)
+  const vehicleBox = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      vehicleData.value.length,
+      vehicleData.value.height,
+      vehicleData.value.breadth
+    ),
+    new THREE.MeshBasicMaterial({ color: 0x888888, wireframe: true })
+  )
+  vehicleBox.position.set(
+    vehicleData.value.length / 2,
+    vehicleData.value.height / 2,
+    vehicleData.value.breadth / 2
+  )
   scene.add(vehicleBox)
 
   const { data } = await axios.post('http://localhost:8000/pack', vehicleData.value)
   const packedItems = data.packed_items
 
-  const productBoxes = []
+  const boxes = []
 
   packedItems.forEach(item => {
     const { length, breadth, height } = item.adjusted_size
     const { x, y, z } = item.position
-    const fragility = item.fragility_index
 
     const geometry = new THREE.BoxGeometry(length, height, breadth)
-    const color = getColorByFragility(fragility)
-    const material = new THREE.MeshStandardMaterial({ color })
-    const box = new THREE.Mesh(geometry, material)
+    const material = new THREE.MeshStandardMaterial({ color: getColor(item.fragility_index) })
+    const mesh = new THREE.Mesh(geometry, material)
 
-    box.position.set(x + length / 2, z + height / 2, y + breadth / 2)
-    box.userData = {
+    mesh.position.set(
+      x + length / 2,
+      z + height / 2,
+      y + breadth / 2
+    )
+
+    // Store metadata for tooltip
+    mesh.userData = {
+      id: item.product_id,
       name: item.product_name,
-      id: item.product_id
     }
 
-    scene.add(box)
-    productBoxes.push(box)
+    scene.add(mesh)
+    boxes.push(mesh)
+
+    // Outline
+    const edges = new THREE.EdgesGeometry(geometry)
+    const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000 })
+    const wireframe = new THREE.LineSegments(edges, lineMaterial)
+    wireframe.position.copy(mesh.position)
+    scene.add(wireframe)
   })
 
-  const raycaster = new THREE.Raycaster()
-  const mouse = new THREE.Vector2()
+  function getColor(index) {
+    if (index >= 8) return 0xff0000
+    if (index >= 5) return 0xffa500
+    return 0x00ff00
+  }
 
-  renderer.domElement.addEventListener('mousemove', event => {
-    const rect = renderer.domElement.getBoundingClientRect()
+  canvasEl.addEventListener('mousemove', (event) => {
+    const rect = canvasEl.getBoundingClientRect()
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
 
     raycaster.setFromCamera(mouse, camera)
-    const intersects = raycaster.intersectObjects(productBoxes)
+    const intersects = raycaster.intersectObjects(boxes)
 
     if (intersects.length > 0) {
-      const object = intersects[0].object
-      tooltip.value.style.display = 'block'
-      tooltip.value.innerHTML = `🧱 ${object.userData.name} (ID: ${object.userData.id})`
-      tooltip.value.style.left = `${event.clientX + 10}px`
-      tooltip.value.style.top = `${event.clientY + 10}px`
+      const { id, name } = intersects[0].object.userData
+      tooltip.value = {
+        visible: true,
+        x: event.clientX - rect.left + 10,
+        y: event.clientY - rect.top + 10,
+        id,
+        name
+      }
     } else {
-      tooltip.value.style.display = 'none'
+      tooltip.value.visible = false
     }
   })
 
-  function animate() {
+  const animate = () => {
     requestAnimationFrame(animate)
     controls.update()
     renderer.render(scene, camera)
-  }
-
-  function getColorByFragility(index) {
-    if (index >= 8) return 0xff0000
-    if (index >= 5) return 0xffa500
-    return 0x00ff00
   }
 
   animate()
@@ -134,17 +175,15 @@ onMounted(async () => {
   height: 500px;
   position: relative;
   background-color: #ffffff;
-  margin-top: 20px;
 }
 
 .tooltip {
   position: absolute;
-  display: none;
-  background: rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.8);
   color: #fff;
-  padding: 5px 8px;
+  padding: 6px 10px;
+  font-size: 13px;
   border-radius: 4px;
-  font-size: 12px;
   pointer-events: none;
   z-index: 10;
 }
