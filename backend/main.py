@@ -37,26 +37,16 @@ def preprocess_products(products: List[Dict]) -> List[Dict]:
         product["padded_height"] = product["height"] * factor
     return products
 
-def pack_products(vehicle: Dict[str, float], products: List[Dict]) -> List[Dict]:
-    v_length, v_breadth, v_height = vehicle["length"], vehicle["breadth"], vehicle["height"]
-
-    products = preprocess_products(products)
-    products.sort(key=compute_volume, reverse=True)
-
-    packed_items = []
-    # List of available spaces: each space is (x, y, z, l, b, h)
-    spaces = [(0, 0, 0, v_length, v_breadth, v_height)]
-
-    for product in products:
+def pack_grouped_products(products_group: List[Dict], spaces: List[tuple], packed_items: List[Dict]):
+    for product in products_group:
         placed = False
         rotations = generate_rotations(product["padded_length"], product["padded_breadth"], product["padded_height"])
 
-        for i, (sx, sy, sz, sl, sb, sh) in enumerate(spaces):
+        for i in range(len(spaces)):
+            sx, sy, sz, sl, sb, sh = spaces[i]
             for rot in rotations:
                 p_len, p_br, p_ht = rot
-                # Check if the product fits in the current available space
                 if p_len <= sl and p_br <= sb and p_ht <= sh:
-                    # Pack the item here
                     packed_items.append({
                         "product_id": product["product_id"],
                         "product_name": product["product_name"],
@@ -73,29 +63,40 @@ def pack_products(vehicle: Dict[str, float], products: List[Dict]) -> List[Dict]
                         }
                     })
 
-                    # Remove used space and add new subspaces (left, right, front, back, top, bottom)
                     del spaces[i]
-                    if p_len < sl:
-                        spaces.append((sx + p_len, sy, sz, sl - p_len, sb, sh))  # Right side
-                    if p_br < sb:
-                        spaces.append((sx, sy + p_br, sz, p_len, sb - p_br, sh))  # Front side
-                    if p_ht < sh:
-                        spaces.append((sx, sy, sz + p_ht, p_len, p_br, sh - p_ht))  # Top side
-                    if p_len < sl:
-                        spaces.append((sx, sy, sz, sl - p_len, sb, sh))  # Left side (before)
-                    if p_br < sb:
-                        spaces.append((sx, sy, sz, p_len, sb - p_br, sh))  # Back side (before)
-                    if p_ht < sh:
-                        spaces.append((sx, sy, sz, p_len, p_br, sh - p_ht))  # Bottom side
+                    spaces.append((sx + p_len, sy, sz, sl - p_len, sb, sh))  # Right
+                    spaces.append((sx, sy + p_br, sz, p_len, sb - p_br, sh))  # Front
+                    spaces.append((sx, sy, sz + p_ht, p_len, p_br, sh - p_ht))  # Top
 
                     placed = True
                     break
             if placed:
                 break
+    return spaces, packed_items
+
+def pack_products(vehicle: Dict[str, float], products: List[Dict]) -> List[Dict]:
+    v_length, v_breadth, v_height = vehicle["length"], vehicle["breadth"], vehicle["height"]
+
+    products = preprocess_products(products)
+
+    # Group products by fragility levels
+    bottom_products = [p for p in products if 1 <= p["fragility_index"] <= 4]
+    middle_products = [p for p in products if 5 <= p["fragility_index"] <= 7]
+    top_products = [p for p in products if 8 <= p["fragility_index"] <= 10]
+
+    # Sort each group by volume descending
+    bottom_products.sort(key=compute_volume, reverse=True)
+    middle_products.sort(key=compute_volume, reverse=True)
+    top_products.sort(key=compute_volume, reverse=True)
+
+    packed_items = []
+    spaces = [(0, 0, 0, v_length, v_breadth, v_height)]
+
+    for group in [bottom_products, middle_products, top_products]:
+        spaces, packed_items = pack_grouped_products(group, spaces, packed_items)
 
     return packed_items
 
-# ✅ New endpoint for receiving vehicle dimensions
 @app.post("/vehicle")
 def receive_vehicle(vehicle: VehicleDimensions):
     print(f"Received vehicle dimensions: {vehicle}")
