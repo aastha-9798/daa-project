@@ -102,6 +102,7 @@ def receive_vehicle(vehicle: VehicleDimensions):
     print(f"Received vehicle dimensions: {vehicle}")
     return {"message": "Vehicle dimensions received successfully"}
 
+
 @app.post("/pack")
 def pack_vehicle_space(vehicle: VehicleDimensions):
     try:

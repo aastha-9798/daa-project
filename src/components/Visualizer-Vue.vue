@@ -5,11 +5,13 @@
       <p><strong>Vehicle Length:</strong> {{ vehicleData.length }}</p>
       <p><strong>Vehicle Breadth:</strong> {{ vehicleData.breadth }}</p>
       <p><strong>Vehicle Height:</strong> {{ vehicleData.height }}</p>
+
       <div
         ref="threeCanvas"
         class="three-canvas"
         style="width: 100%; height: 500px; position: relative;"
       ></div>
+
       <div
         class="tooltip"
         :style="{
@@ -21,13 +23,18 @@
         <p><strong>ID:</strong> {{ tooltip.id }}</p>
         <p><strong>Name:</strong> {{ tooltip.name }}</p>
       </div>
+
+      <!-- Final Report Button -->
+      <div class="final-report-btn">
+        <button @click="goToReport">Final Report</button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { onMounted, ref, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import * as THREE from 'three'
 import axios from 'axios'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
@@ -35,7 +42,9 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 const threeCanvas = ref(null)
 const tooltip = ref({ visible: false, x: 0, y: 0, id: '', name: '' })
 const vehicleData = ref(null)
+const packedItems = ref([])
 const route = useRoute()
+const router = useRouter()
 
 onMounted(async () => {
   const query = route.query
@@ -74,7 +83,6 @@ onMounted(async () => {
   const raycaster = new THREE.Raycaster()
   const mouse = new THREE.Vector2()
 
-  // Vehicle outer box (wireframe)
   const vehicleBox = new THREE.Mesh(
     new THREE.BoxGeometry(
       vehicleData.value.length,
@@ -91,11 +99,11 @@ onMounted(async () => {
   scene.add(vehicleBox)
 
   const { data } = await axios.post('http://localhost:8000/pack', vehicleData.value)
-  const packedItems = data.packed_items
+  packedItems.value = data.packed_items
 
   const boxes = []
 
-  packedItems.forEach(item => {
+  packedItems.value.forEach(item => {
     const { length, breadth, height } = item.adjusted_size
     const { x, y, z } = item.position
 
@@ -109,7 +117,6 @@ onMounted(async () => {
       y + breadth / 2
     )
 
-    // Store metadata for tooltip
     mesh.userData = {
       id: item.product_id,
       name: item.product_name,
@@ -118,7 +125,6 @@ onMounted(async () => {
     scene.add(mesh)
     boxes.push(mesh)
 
-    // Outline
     const edges = new THREE.EdgesGeometry(geometry)
     const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000 })
     const wireframe = new THREE.LineSegments(edges, lineMaterial)
@@ -162,7 +168,35 @@ onMounted(async () => {
 
   animate()
 })
+
+function goToReport() {
+  const reportData = packedItems.value.map(item => ({
+    id: item.product_id,
+    name: item.product_name,
+    dimensions: item.adjusted_size,
+    distance: item.distance,
+    coordinates: item.position
+  }))
+
+  const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' })
+  const fileUrl = URL.createObjectURL(blob)
+
+  // Save to session storage
+  sessionStorage.setItem('reportFile', fileUrl)
+
+  // Optionally download file
+  // const a = document.createElement('a')
+  // a.href = fileUrl
+  // a.download = 'final_report.json'
+  // a.click()
+
+  // Navigate to report
+  router.push({
+    name: 'FinalReport',
+  })
+}
 </script>
+
 
 <style scoped>
 .visualizer {
@@ -186,5 +220,16 @@ onMounted(async () => {
   border-radius: 4px;
   pointer-events: none;
   z-index: 10;
+}
+
+.final-report-btn {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.final-report-btn button {
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
 }
 </style>
