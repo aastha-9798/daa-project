@@ -77,25 +77,33 @@ def pack_grouped_products(products_group: List[Dict], spaces: List[tuple], packe
 def pack_products(vehicle: Dict[str, float], products: List[Dict]) -> List[Dict]:
     v_length, v_breadth, v_height = vehicle["length"], vehicle["breadth"], vehicle["height"]
 
+    # Step 1: Preprocess with padding
     products = preprocess_products(products)
 
-    # Group products by fragility levels
-    bottom_products = [p for p in products if 1 <= p["fragility_index"] <= 4]
-    middle_products = [p for p in products if 5 <= p["fragility_index"] <= 7]
-    top_products = [p for p in products if 8 <= p["fragility_index"] <= 10]
+    # Step 2: Sort by distance descending
+    products.sort(key=lambda p: p["distance"], reverse=True)
 
-    # Sort each group by volume descending
-    bottom_products.sort(key=compute_volume, reverse=True)
-    middle_products.sort(key=compute_volume, reverse=True)
-    top_products.sort(key=compute_volume, reverse=True)
+    # Step 3: Divide into 5 batches
+    batch_size = len(products) // 5
+    remainder = len(products) % 5
+    batches = []
+    start = 0
+    for i in range(5):
+        end = start + batch_size + (1 if i < remainder else 0)
+        batches.append(products[start:end])
+        start = end
 
+    # Step 4: Pack batch-by-batch
     packed_items = []
     spaces = [(0, 0, 0, v_length, v_breadth, v_height)]
 
-    for group in [bottom_products, middle_products, top_products]:
-        spaces, packed_items = pack_grouped_products(group, spaces, packed_items)
+    for batch in batches:
+        # Sort by volume within batch for better space usage
+        batch.sort(key=compute_volume, reverse=True)
+        spaces, packed_items = pack_grouped_products(batch, spaces, packed_items)
 
     return packed_items
+
 
 @app.post("/vehicle")
 def receive_vehicle(vehicle: VehicleDimensions):

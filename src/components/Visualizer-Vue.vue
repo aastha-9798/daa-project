@@ -173,8 +173,8 @@ function goToReport() {
   const reportData = packedItems.value.map(item => ({
     id: item.product_id,
     name: item.product_name,
+    fragility: item.fragility_index,
     dimensions: item.adjusted_size,
-    distance: item.distance,
     coordinates: item.position
   }))
 

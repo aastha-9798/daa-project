@@ -12,6 +12,7 @@
         <tr>
           <th>ID</th>
           <th>Name</th>
+          <th>Fragility</th>
           <th>Dimensions (L×B×H)</th>
           <th>Coordinates (X, Y, Z)</th>
         </tr>
@@ -20,6 +21,7 @@
         <tr v-for="item in reportData" :key="item.id">
           <td>{{ item.id }}</td>
           <td>{{ item.name }}</td>
+          <td>{{item.fragility}}</td>
           <td>{{ formatDimensions(item.dimensions) }}</td>
           <td>{{ formatCoordinates(item.coordinates) }}</td>
         </tr>
@@ -56,6 +58,14 @@ onMounted(async () => {
     if (!response.ok) throw new Error('Failed to load report file.')
 
     const json = await response.json()
+
+    // Sort by numeric part of the ID
+    json.sort((a, b) => {
+      const numA = parseInt(a.id.replace(/\D/g, ''))
+      const numB = parseInt(b.id.replace(/\D/g, ''))
+      return numA - numB
+    })
+
     reportData.value = json
   } catch (err) {
     error.value = err.message || 'Error loading report data.'
@@ -63,6 +73,7 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
 </script>
 
 <style scoped>
