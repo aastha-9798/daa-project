@@ -1,0 +1,111 @@
+# Prepare detailed role-wise viva content for 4 team members
+from pathlib import Path
+
+team_roles_detailed = """
+# 🎓 Team Role-wise Viva Prep Guide for 3D Bin Packing Project
+
+---
+
+## 👤 Participant A – Algorithm Developer (DAA Logic)
+
+### 🔧 Responsibilities:
+- Designed the core bin packing strategy.
+- Implemented a layer-wise heuristic algorithm.
+- Handled item rotation, collision detection, and placement order.
+- Prioritized items based on fragility and space optimization.
+
+### ❓ Potential Viva Questions and Answers:
+
+**Q1. What algorithm did you use for bin packing?**
+> I implemented a layer-wise heuristic similar to First-Fit Decreasing Height (FFDH). Items are sorted by height and packed tightly within Z-layers. Each layer is treated like a 2D packing problem on the X-Y plane.
+
+**Q2. Why not use 3-way space splitting?**
+> That leads to high fragmentation and leftover space. My layer-wise approach minimizes gaps by filling one complete layer before moving up.
+
+**Q3. How do you avoid overlap between products?**
+> I check every placement using collision detection across all placed boxes in the current layer. If any overlap is found, the placement is skipped.
+
+**Q4. How is fragility handled?**
+> Fragile items are either packed later or placed in higher Z-layers to avoid being crushed by heavier/sturdier items.
+
+---
+
+## 👤 Participant B – Backend Engineer (FastAPI)
+
+### 🔧 Responsibilities:
+- Built FastAPI backend and defined `/pack` endpoint.
+- Loaded and validated `products.json`.
+- Applied preprocessing for missing fields.
+- Ensured robust exception handling and data return.
+
+### ❓ Potential Viva Questions and Answers:
+
+**Q1. Why did you choose FastAPI?**
+> It's lightweight, fast, and supports modern async requests. FastAPI also makes JSON validation easier with Pydantic models.
+
+**Q2. What happens in the `/pack` endpoint?**
+> It receives the vehicle size, reads products from `products.json`, preprocesses them, then applies the packing logic. It returns a list of packed items with position and size.
+
+**Q3. How is JSON validation handled?**
+> Through Pydantic models and fallback values in the `preprocess_products` function.
+
+**Q4. What happens if the product JSON is malformed?**
+> The app raises a 500 error with an appropriate HTTPException, helping us debug.
+
+---
+
+## 👤 Participant C – Frontend Engineer (Vue + Three.js)
+
+### 🔧 Responsibilities:
+- Designed the 3D visualizer using Three.js inside Vue.
+- Fetched packed data from backend and rendered boxes.
+- Added color based on fragility, and tooltips for ID/name.
+- Ensured the scene is interactive and intuitive.
+
+### ❓ Potential Viva Questions and Answers:
+
+**Q1. How does the 3D scene render products?**
+> Each product is rendered as a Three.js `BoxGeometry` with a color based on its fragility. We use mesh + wireframe for visibility.
+
+**Q2. How do you show tooltip info?**
+> We use a `Raycaster` to detect mouse hover events on objects. The intersected object’s `userData` is shown in a floating div.
+
+**Q3. How does the camera work?**
+> A `PerspectiveCamera` is placed at an angle and `OrbitControls` are enabled so users can rotate and zoom the scene.
+
+**Q4. How are products colored?**
+> Fragility index 0 = green (safe), 1 = orange (moderate), 2 = red (fragile). This improves visibility and interpretation.
+
+---
+
+## 👤 Participant D – Testing & Documentation Lead
+
+### 🔧 Responsibilities:
+- Created and tested multiple `products.json` variations.
+- Verified proper box placement and API functioning.
+- Wrote project reports, README, and helped prepare viva kit.
+- Coordinated teamwork and finalized outputs.
+
+### ❓ Potential Viva Questions and Answers:
+
+**Q1. How did you test your system?**
+> I created different test cases with oversized, fragile, or missing-value products. I verified results via visualization and response JSON.
+
+**Q2. How do you know the packing is correct?**
+> I cross-checked dimensions and positions manually in the visualizer and made sure no boxes overlap or exceed container bounds.
+
+**Q3. What should `products.json` contain?**
+> Each product must have ID, name, length, breadth, and height. Optional fields include fragility, weight, and distance_from_hub.
+
+**Q4. What issues did you face in testing?**
+> Initially, missing fields caused crashes. Later, placement logic improvements fixed space-waste and collision problems.
+
+---
+
+Each participant played a key role to ensure the success of the project, both in technical development and presentation.
+"""
+
+# Save the detailed team-based viva prep to a file
+team_file = Path("/mnt/data/Team_Viva_Prep_Roles.txt")
+team_file.write_text(team_roles_detailed)
+team_file.name
