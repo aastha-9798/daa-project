@@ -21,7 +21,7 @@ class VehicleDimensions(BaseModel):
     height: float
 
 def get_padding_factor(fragility_index: int, weight: int) -> float:
-    return 1 + (0.02 * fragility_index  + 0.005 * weight ) 
+    return 1 + (0.02 * fragility_index +0.0005 *weight ) 
 
 def generate_rotations(length: float, breadth: float, height: float):
     return set(itertools.permutations([length, breadth, height]))
@@ -31,7 +31,7 @@ def compute_volume(p: Dict) -> float:
 
 def preprocess_products(products: List[Dict]) -> List[Dict]:
     for product in products:
-        factor = get_padding_factor(product["fragility_index"] , product["weight"], (product["length"] * product["breadth"]*product["height"]))
+        factor = get_padding_factor(product["fragility_index"] , product["weight"])
         product["padded_length"] = product["length"] * factor
         product["padded_breadth"] = product["breadth"] * factor
         product["padded_height"] = product["height"] * factor
@@ -137,7 +137,6 @@ def pack_grouped_products(products_group: List[Dict], spacesR: List[tuple],space
     print("spaceR : " , len(spacesR))
     print("spaceT : " , len(spacesT))
     print("spaceF : " , len(spacesF))
-    print("s0: " , spacesF[0])
     return packed_items
 
 def pack_products(vehicle: Dict[str, float], products: List[Dict]) -> List[Dict]:
