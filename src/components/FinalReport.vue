@@ -7,28 +7,34 @@
     <div v-else-if="reportData.length === 0">
       No report data found. Please generate the report first.
     </div>
-    <table v-else>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Name</th>
-          <th>Fragility</th>
-          <th>Dimensions (L×B×H)</th>
-          <th>Coordinates (X, Y, Z)</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="item in reportData" :key="item.id">
-          <td>{{ item.id }}</td>
-          <td>{{ item.name }}</td>
-          <td>{{item.fragility}}</td>
-          <td>{{ formatDimensions(item.dimensions) }}</td>
-          <td>{{ formatCoordinates(item.coordinates) }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-else>
+      <p><strong>Total Packed Products:</strong> {{ reportData.length }}</p>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Fragility</th>
+            <th>Distance</th>
+            <th>Dimensions (L×B×H)</th>
+            <th>Coordinates (X, Y, Z)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in reportData" :key="item.id">
+            <td>{{ item.id }}</td>
+            <td>{{ item.name }}</td>
+            <td>{{ item.fragility }}</td>
+            <td>{{ item.distance }}</td>
+            <td>{{ formatDimensions(item.dimensions) }}</td>
+            <td>{{ formatCoordinates(item.coordinates) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
+
 
 <script setup>
 import { ref, onMounted } from 'vue'

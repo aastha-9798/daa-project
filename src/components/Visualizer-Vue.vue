@@ -174,6 +174,7 @@ function goToReport() {
     id: item.product_id,
     name: item.product_name,
     fragility: item.fragility_index,
+    distance: item.distance,
     dimensions: item.adjusted_size,
     coordinates: item.position
   }))
